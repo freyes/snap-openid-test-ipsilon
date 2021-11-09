@@ -1,0 +1,121 @@
+name: openidc-test-ipsilon
+base: core20
+summary: The Ipsilon project implements an Identity Provider that is easy to use.
+description: |
+  The Ipsilon project implements an Identity Provider that is easy to use and
+  configure. And it aims at providing installation scripts for applications
+  that can use an Apache fronted to perform user authentication.
+
+  An IdP server allows users to authenticate against any identity provider
+  whether that is a corporate LDAP server or even just local files or custom
+  pluggable modules and allows applications to authenticate users while being
+  completely agnostic of what authentication infrastructure is being used.
+
+  Applications can currently use the SAML2 protocol to talk to the Ipsilon
+  identity provider, an application that uses SAML is called a Service
+  Provider.
+
+  Ipsilon uses the LASSO libraries and Python bindings to implement SAML
+  support.
+
+grade: devel
+confinement: classic # to make PAM work
+
+adopt-info: ipsilon
+
+apps:
+  daemon:
+    command: ipsilon-service.sh
+    daemon: simple
+    plugs:
+      - network
+      - network-bind
+      - config-pam
+  ipsilon:
+    command: bin/ipsilon
+    plugs:
+      - network
+      - network-bind
+      - config-pam
+  ipsilon-client-install:
+    command: bin/ipsilon-client-install
+    plugs:
+      - network
+      - network-bind
+      - config-pam
+  ipsilon-db2conf:
+    command: bin/ipsilon-db2conf
+    plugs:
+      - network
+      - network-bind
+      - config-pam
+  ipsilon-server-install:
+    command: bin/ipsilon-server-install
+    plugs:
+      - network
+      - network-bind
+      - config-pam
+  ipsilon-upgrade-database:
+    command: bin/ipsilon-upgrade-database
+    plugs:
+      - network
+      - network-bind
+      - config-pam
+
+parts:
+  ipsilon:
+    source: https://pagure.io/ipsilon.git
+    plugin: python
+    python-packages:
+      - python3-openid
+      - python-openid-teams
+      - python-openid-cla
+      - cherrypy
+      - m2crypto
+      - sqlalchemy
+      - python-ldap
+      - python-pam
+      - ipalib
+      - mod_wsgi
+      - jinja2
+      - psycopg2
+      - requests-kerberos
+      - lesscpy
+      - jwcrypto
+      - six
+      - lxml
+
+    override-pull: |
+      snapcraftctl pull
+      version="$(git describe --tags --always --dirty)"
+      [ -n "$(echo $version | grep '-')" ] && grade=devel || grade=stable
+      snapcraftctl set-version "$version"
+      snapcraftctl set-grade "$grade"
+    override-build: |
+      snapcraftctl build
+      cp $SNAPCRAFT_PART_BUILD/quickrun.py $SNAPCRAFT_PART_INSTALL/bin/
+      cp -rf $SNAPCRAFT_PART_BUILD/ui/fonts $SNAPCRAFT_PART_INSTALL/share/ipsilon/ui/
+    build-packages:
+      - git
+      - build-essential
+      - apache2-dev
+      - libpq-dev
+      - python3-sss
+      - libkrb5-dev
+      - swig  # needed by M2Crypto
+      - libssl-dev
+      - libsasl2-dev
+      - python3-lasso
+
+    stage-packages:
+      - python3-sss
+      - libpython3.8
+      - libpq5
+      - python3-lasso
+      - apache2
+
+  ipsilon-service:
+    source: snap/local
+    plugin: dump
+    # organize:
+    #   ipsilon-service.sh: bin/
